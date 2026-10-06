@@ -1,8 +1,7 @@
 import 'dotenv/config'
-import express from 'express'
+import app from './app.js'
 import { connectToDatabase } from './config/database.js'
 
-const app = express()
 const port = process.env.PORT || 5000
 
 async function startServer() {
