@@ -1,11 +1,14 @@
 import cors from 'cors'
 import express from 'express'
+import authRoutes from './routes/authRoutes.js'
 
 const app = express()
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 app.use(cors({ origin: frontendUrl }))
 app.use(express.json())
+
+app.use('/api/auth', authRoutes)
 
 app.get('/api/health', (request, response) => {
   response.status(200).json({
