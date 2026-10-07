@@ -75,6 +75,35 @@ export const api = {
       method: 'DELETE',
     })
   },
+
+  getProjects(filters = {}) {
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) query.set(key, value)
+    }
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return request(`/projects${suffix}`)
+  },
+
+  createProject(project) {
+    return request('/projects', {
+      method: 'POST',
+      body: JSON.stringify(project),
+    })
+  },
+
+  updateProject(id, project) {
+    return request(`/projects/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(project),
+    })
+  },
+
+  deleteProject(id) {
+    return request(`/projects/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 export { TOKEN_KEY }
