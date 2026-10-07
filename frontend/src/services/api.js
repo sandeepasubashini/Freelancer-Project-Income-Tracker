@@ -51,6 +51,30 @@ export const api = {
   getCurrentUser() {
     return request('/auth/me')
   },
+
+  getClients() {
+    return request('/clients')
+  },
+
+  createClient(client) {
+    return request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(client),
+    })
+  },
+
+  updateClient(id, client) {
+    return request(`/clients/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(client),
+    })
+  },
+
+  deleteClient(id) {
+    return request(`/clients/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 export { TOKEN_KEY }

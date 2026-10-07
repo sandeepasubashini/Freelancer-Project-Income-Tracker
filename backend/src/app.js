@@ -1,6 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import authRoutes from './routes/authRoutes.js'
+import clientRoutes from './routes/clientRoutes.js'
 
 const app = express()
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
@@ -9,6 +10,7 @@ app.use(cors({ origin: frontendUrl }))
 app.use(express.json())
 
 app.use('/api/auth', authRoutes)
+app.use('/api/clients', clientRoutes)
 
 app.get('/api/health', (request, response) => {
   response.status(200).json({

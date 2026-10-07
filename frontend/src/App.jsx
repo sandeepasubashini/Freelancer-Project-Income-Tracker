@@ -1,31 +1,31 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import PublicOnlyRoute from './components/PublicOnlyRoute.jsx'
+import WorkspaceLayout from './components/WorkspaceLayout.jsx'
+import ClientsPage from './pages/ClientsPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 
-function ProtectedDashboardPlaceholder() {
-  const { isAuthenticated, isLoading, logout, user } = useAuth()
-
-  if (isLoading) {
-    return <main className="grid min-h-screen place-items-center text-sm text-muted">Restoring your session…</main>
-  }
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
-  }
+function DashboardPlaceholder() {
+  const { user } = useAuth()
 
   return (
     <main className="layout-container py-10">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-6">
-        <div>
-          <p className="text-sm font-semibold text-brand">FreelanceFlow</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Dashboard coming soon</h1>
-          <p className="mt-2 text-sm text-muted">You’re signed in as {user.name}.</p>
-        </div>
-        <button onClick={logout} className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:bg-page">
-          Sign out
-        </button>
-      </header>
-      <p className="mt-8 text-sm text-muted">Your projects and income overview will be available here in a future step.</p>
+      <p className="text-sm font-semibold text-brand">Your workspace</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Welcome, {user.name}</h1>
+      <p className="mt-3 max-w-xl text-sm leading-6 text-muted">Your project and income overview will be available here in a future step. Start by organizing your client relationships.</p>
+      <Link to="/clients" className="mt-6 inline-flex rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">View clients</Link>
+    </main>
+  )
+}
+
+function ComingSoon({ title }) {
+  return (
+    <main className="layout-container py-10">
+      <p className="text-sm font-semibold text-brand">Workspace</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{title}</h1>
+      <p className="mt-3 text-sm text-muted">This area is not available yet.</p>
     </main>
   )
 }
@@ -33,11 +33,20 @@ function ProtectedDashboardPlaceholder() {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/dashboard" element={<ProtectedDashboardPlaceholder />} />
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route element={<PublicOnlyRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Route>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<WorkspaceLayout />}>
+          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+          <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/projects" element={<ComingSoon title="Projects coming soon" />} />
+          <Route path="/income" element={<ComingSoon title="Income tracking coming soon" />} />
+        </Route>
+      </Route>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )
 }
