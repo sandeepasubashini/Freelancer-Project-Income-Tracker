@@ -68,6 +68,7 @@ export async function register(request, response, next) {
           id: user.id,
           name: user.name,
           email: user.email,
+          createdAt: user.createdAt,
         },
       },
     })
@@ -156,6 +157,7 @@ export async function getCurrentUser(request, response) {
         id: user.id,
         name: user.name,
         email: user.email,
+        createdAt: user.createdAt,
       },
     },
   })

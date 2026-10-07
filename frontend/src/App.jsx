@@ -8,6 +8,7 @@ import ClientsPage from './pages/ClientsPage.jsx'
 import IncomePage from './pages/IncomePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ProjectsPage from './pages/ProjectsPage.jsx'
+import ProfilePage from './pages/ProfilePage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'))
@@ -25,6 +26,7 @@ function AppRoutes() {
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/income" element={<IncomePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
