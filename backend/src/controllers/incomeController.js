@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import Income, { paymentMethods, paymentStatuses } from '../models/Income.js'
 import Project from '../models/Project.js'
+import { buildPagination, parsePagination } from '../utils/pagination.js'
 
 const editableFields = ['project', 'amount', 'paymentDate', 'paymentStatus', 'paymentMethod', 'notes']
 
@@ -105,6 +106,11 @@ export async function createIncome(request, response) {
 }
 
 export async function getIncomeRecords(request, response) {
+  const pagination = parsePagination(request.query)
+  if (pagination.error) {
+    return response.status(400).json({ status: 'error', message: pagination.error })
+  }
+
   const filter = { user: request.userId }
   const { paymentStatus, project, startDate, endDate } = request.query
 
@@ -148,8 +154,35 @@ export async function getIncomeRecords(request, response) {
     filter.paymentDate = paymentDate
   }
 
-  const records = await populatedIncomeQuery(Income.find(filter).sort({ paymentDate: -1, createdAt: -1 }))
-  return response.status(200).json({ status: 'success', data: { income: records } })
+  const [records, total, summary] = await Promise.all([
+    populatedIncomeQuery(
+      Income.find(filter)
+        .sort({ paymentDate: -1, createdAt: -1 })
+        .skip(pagination.skip)
+        .limit(pagination.limit),
+    ),
+    Income.countDocuments(filter),
+    Income.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: '$paymentStatus',
+          amount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+  ])
+  const totals = summary.reduce((result, item) => {
+    if (item._id === 'Paid') result.paid += item.amount
+    if (item._id === 'Pending') result.pending += item.amount
+    return result
+  }, { paid: 0, pending: 0 })
+  return response.status(200).json({
+    status: 'success',
+    data: { income: records, totals },
+    pagination: buildPagination(pagination.page, pagination.limit, total),
+  })
 }
 
 export async function getIncomeRecord(request, response) {

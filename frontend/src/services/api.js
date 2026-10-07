@@ -52,8 +52,13 @@ export const api = {
     return request('/auth/me')
   },
 
-  getClients() {
-    return request('/clients')
+  getClients(filters = {}) {
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== '' && value !== null && value !== undefined) query.set(key, value)
+    }
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return request(`/clients${suffix}`)
   },
 
   createClient(client) {
@@ -79,7 +84,7 @@ export const api = {
   getProjects(filters = {}) {
     const query = new URLSearchParams()
     for (const [key, value] of Object.entries(filters)) {
-      if (value) query.set(key, value)
+      if (value !== '' && value !== null && value !== undefined) query.set(key, value)
     }
     const suffix = query.size ? `?${query.toString()}` : ''
     return request(`/projects${suffix}`)
@@ -108,7 +113,7 @@ export const api = {
   getIncome(filters = {}) {
     const query = new URLSearchParams()
     for (const [key, value] of Object.entries(filters)) {
-      if (value) query.set(key, value)
+      if (value !== '' && value !== null && value !== undefined) query.set(key, value)
     }
     const suffix = query.size ? `?${query.toString()}` : ''
     return request(`/income${suffix}`)

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import Client from '../models/Client.js'
 import Project, { projectStatuses } from '../models/Project.js'
+import { buildPagination, parsePagination } from '../utils/pagination.js'
 
 const editableFields = ['projectName', 'client', 'description', 'status', 'fee', 'startDate', 'dueDate']
 
@@ -114,6 +115,11 @@ export async function createProject(request, response) {
 }
 
 export async function getProjects(request, response) {
+  const pagination = parsePagination(request.query)
+  if (pagination.error) {
+    return response.status(400).json({ status: 'error', message: pagination.error })
+  }
+
   const filter = { user: request.userId }
   const { status, client, search } = request.query
 
@@ -144,8 +150,20 @@ export async function getProjects(request, response) {
     }
   }
 
-  const projects = await populatedProjectQuery(Project.find(filter).sort({ createdAt: -1 }))
-  return response.status(200).json({ status: 'success', data: { projects } })
+  const [projects, total] = await Promise.all([
+    populatedProjectQuery(
+      Project.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(pagination.skip)
+        .limit(pagination.limit),
+    ),
+    Project.countDocuments(filter),
+  ])
+  return response.status(200).json({
+    status: 'success',
+    data: { projects },
+    pagination: buildPagination(pagination.page, pagination.limit, total),
+  })
 }
 
 export async function getProject(request, response) {

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import Client from '../models/Client.js'
+import { buildPagination, parsePagination } from '../utils/pagination.js'
 
 const editableFields = ['name', 'email', 'phone', 'company', 'address', 'notes']
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -85,10 +86,38 @@ export async function createClient(request, response) {
 }
 
 export async function getClients(request, response) {
-  const clients = await Client.find({ user: request.userId }).sort({ createdAt: -1 })
+  const pagination = parsePagination(request.query)
+  if (pagination.error) {
+    return response.status(400).json({ status: 'error', message: pagination.error })
+  }
+
+  const filter = { user: request.userId }
+  const { search } = request.query
+  if (search !== undefined) {
+    if (typeof search !== 'string' || search.length > 100) {
+      return response.status(400).json({
+        status: 'error',
+        message: 'Search must be 100 characters or fewer.',
+      })
+    }
+    if (search.trim()) {
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = { $regex: escapedSearch, $options: 'i' }
+      filter.$or = [{ name: regex }, { company: regex }, { email: regex }]
+    }
+  }
+
+  const [clients, total] = await Promise.all([
+    Client.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(pagination.skip)
+      .limit(pagination.limit),
+    Client.countDocuments(filter),
+  ])
   return response.status(200).json({
     status: 'success',
     data: { clients },
+    pagination: buildPagination(pagination.page, pagination.limit, total),
   })
 }
 

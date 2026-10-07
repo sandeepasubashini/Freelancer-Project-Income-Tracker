@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import PaginationControls from '../components/PaginationControls.jsx'
 import { api } from '../services/api.js'
 import { formatCurrency, formatDate } from '../utils/formatters.js'
 
@@ -19,6 +20,12 @@ function dateInputValue(value) {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
 }
 
+function isValidDateInput(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
 function PaymentForm({ income, projects, onCancel, onSave }) {
   const [form, setForm] = useState(income === 'new' ? blankPayment : {
     ...blankPayment,
@@ -27,29 +34,35 @@ function PaymentForm({ income, projects, onCancel, onSave }) {
     amount: String(income.amount),
     paymentDate: dateInputValue(income.paymentDate),
   })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
   function updateField(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }))
+    setFieldErrors((current) => ({ ...current, [event.target.name]: '' }))
+    setError('')
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
     const amount = Number(form.amount)
+    const nextErrors = {}
     if (!form.project) {
-      setError('Select a project for this payment.')
-      return
+      nextErrors.project = 'Select a project for this payment.'
     }
     if (form.amount === '' || !Number.isFinite(amount) || amount <= 0) {
-      setError('Payment amount must be greater than 0.')
+      nextErrors.amount = 'Payment amount must be a number greater than 0.'
+    }
+    if (!isValidDateInput(form.paymentDate)) {
+      nextErrors.paymentDate = 'Enter a valid payment date.'
+    }
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors)
       return
     }
-    if (!form.paymentDate || !/^\d{4}-\d{2}-\d{2}$/.test(form.paymentDate)) {
-      setError('Enter a valid payment date.')
-      return
-    }
+    setFieldErrors({})
 
     setIsSaving(true)
     try {
@@ -84,20 +97,23 @@ function PaymentForm({ income, projects, onCancel, onSave }) {
           {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
           <div>
             <label htmlFor="payment-project" className="mb-1.5 block text-sm font-medium text-ink">Project <span className="text-red-600">*</span></label>
-            <select id="payment-project" name="project" required value={form.project} onChange={updateField} className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15">
+            <select id="payment-project" name="project" required value={form.project} onChange={updateField} aria-invalid={Boolean(fieldErrors.project)} aria-describedby={fieldErrors.project ? 'payment-project-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.project ? 'border-red-400' : 'border-line focus:border-brand'}`}>
               <option value="">Select a project</option>
               {projects.map((project) => <option key={project._id} value={project._id}>{project.projectName}</option>)}
             </select>
+            {fieldErrors.project && <p id="payment-project-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.project}</p>}
             {projects.length === 0 && <p className="mt-1.5 text-xs text-muted">Add a project before recording a payment.</p>}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="payment-amount" className="mb-1.5 block text-sm font-medium text-ink">Amount <span className="text-red-600">*</span></label>
-              <input id="payment-amount" name="amount" type="number" min="0.01" step="0.01" required value={form.amount} onChange={updateField} placeholder="0.00" className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+              <input id="payment-amount" name="amount" type="number" min="0.01" step="0.01" required value={form.amount} onChange={updateField} placeholder="0.00" aria-invalid={Boolean(fieldErrors.amount)} aria-describedby={fieldErrors.amount ? 'payment-amount-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.amount ? 'border-red-400' : 'border-line focus:border-brand'}`} />
+              {fieldErrors.amount && <p id="payment-amount-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.amount}</p>}
             </div>
             <div>
               <label htmlFor="payment-date" className="mb-1.5 block text-sm font-medium text-ink">Payment date <span className="text-red-600">*</span></label>
-              <input id="payment-date" name="paymentDate" type="date" required value={form.paymentDate} onChange={updateField} className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+              <input id="payment-date" name="paymentDate" type="date" required value={form.paymentDate} onChange={updateField} aria-invalid={Boolean(fieldErrors.paymentDate)} aria-describedby={fieldErrors.paymentDate ? 'payment-date-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.paymentDate ? 'border-red-400' : 'border-line focus:border-brand'}`} />
+              {fieldErrors.paymentDate && <p id="payment-date-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.paymentDate}</p>}
             </div>
             <div>
               <label htmlFor="payment-status" className="mb-1.5 block text-sm font-medium text-ink">Status</label>
@@ -161,6 +177,9 @@ export default function IncomePage() {
   const [projectFilter, setProjectFilter] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
+  const [totals, setTotals] = useState({ paid: 0, pending: 0 })
   const [modalIncome, setModalIncome] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pageError, setPageError] = useState('')
@@ -175,8 +194,12 @@ export default function IncomePage() {
         project: projectFilter,
         startDate,
         endDate,
+        page,
+        limit: 10,
       })
       setRecords(response.data.income)
+      setTotals(response.data.totals || { paid: 0, pending: 0 })
+      setPagination(response.pagination)
     } catch (error) {
       setPageError(error.message)
     } finally {
@@ -186,7 +209,7 @@ export default function IncomePage() {
 
   useEffect(() => {
     let isMounted = true
-    api.getProjects()
+    api.getProjects({ limit: 100 })
       .then((response) => {
         if (isMounted) {
           setProjects(response.data.projects)
@@ -210,8 +233,14 @@ export default function IncomePage() {
           project: projectFilter,
           startDate,
           endDate,
+          page,
+          limit: 10,
         })
-        if (isMounted) setRecords(response.data.income)
+        if (isMounted) {
+          setRecords(response.data.income)
+          setTotals(response.data.totals || { paid: 0, pending: 0 })
+          setPagination(response.pagination)
+        }
       } catch (error) {
         if (isMounted) setPageError(error.message)
       } finally {
@@ -222,13 +251,14 @@ export default function IncomePage() {
       isMounted = false
       window.clearTimeout(timeout)
     }
-  }, [statusFilter, projectFilter, startDate, endDate])
+  }, [statusFilter, projectFilter, startDate, endDate, page])
 
-  const totals = useMemo(() => records.reduce((result, record) => {
-    if (record.paymentStatus === 'Paid') result.paid += record.amount
-    else if (record.paymentStatus === 'Pending') result.pending += record.amount
-    return result
-  }, { paid: 0, pending: 0 }), [records])
+  function updateFilter(setter) {
+    return (event) => {
+      setter(event.target.value)
+      setPage(1)
+    }
+  }
 
   async function saveIncome(form) {
     if (modalIncome === 'new') {
@@ -266,22 +296,23 @@ export default function IncomePage() {
         <article className="rounded-xl border border-line bg-surface p-5 shadow-panel">
           <p className="text-sm font-medium text-muted">Paid income</p>
           <p className="mt-3 text-2xl font-semibold tracking-tight text-ink">{formatCurrency(totals.paid)}</p>
-          <p className="mt-1 text-xs text-muted">From the current payment list</p>
+          <p className="mt-1 text-xs text-muted">Across matching payments</p>
         </article>
         <article className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-panel">
           <p className="text-sm font-medium text-amber-900">Pending payment amount</p>
           <p className="mt-3 text-2xl font-semibold tracking-tight text-amber-950">{formatCurrency(totals.pending)}</p>
-          <p className="mt-1 text-xs text-amber-800">From the current payment list</p>
+          <p className="mt-1 text-xs text-amber-800">Across matching payments</p>
         </article>
       </section>
 
       <section className="mt-6 rounded-xl border border-line bg-surface p-4 shadow-panel sm:p-5">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label><span className="sr-only">Filter by payment status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"><option value="">All statuses</option>{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-          <label><span className="sr-only">Filter by project</span><select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"><option value="">All projects</option>{projects.map((project) => <option key={project._id} value={project._id}>{project.projectName}</option>)}</select></label>
-          <label className="flex items-center gap-2 rounded-lg border border-line px-3"><span className="shrink-0 text-xs text-muted">From</span><input aria-label="Filter start date" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="min-w-0 w-full py-2 text-sm text-ink focus:outline-none" /></label>
-          <label className="flex items-center gap-2 rounded-lg border border-line px-3"><span className="shrink-0 text-xs text-muted">To</span><input aria-label="Filter end date" type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} className="min-w-0 w-full py-2 text-sm text-ink focus:outline-none" /></label>
+          <label><span className="sr-only">Filter by payment status</span><select value={statusFilter} onChange={updateFilter(setStatusFilter)} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"><option value="">All statuses</option>{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <label><span className="sr-only">Filter by project</span><select value={projectFilter} onChange={updateFilter(setProjectFilter)} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"><option value="">All projects</option>{projects.map((project) => <option key={project._id} value={project._id}>{project.projectName}</option>)}</select></label>
+          <label className="flex items-center gap-2 rounded-lg border border-line px-3"><span className="shrink-0 text-xs text-muted">From</span><input aria-label="Filter start date" type="date" value={startDate} onChange={updateFilter(setStartDate)} className="min-w-0 w-full py-2 text-sm text-ink focus:outline-none" /></label>
+          <label className="flex items-center gap-2 rounded-lg border border-line px-3"><span className="shrink-0 text-xs text-muted">To</span><input aria-label="Filter end date" type="date" value={endDate} min={startDate || undefined} onChange={updateFilter(setEndDate)} className="min-w-0 w-full py-2 text-sm text-ink focus:outline-none" /></label>
         </div>
+        {(statusFilter || projectFilter || startDate || endDate) && <button type="button" onClick={() => { setStatusFilter(''); setProjectFilter(''); setStartDate(''); setEndDate(''); setPage(1) }} className="mt-3 text-sm font-semibold text-brand hover:text-brand-strong">Clear filters</button>}
 
         {(pageError || projectError) && <div role="alert" className="mt-5 flex flex-col justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:flex-row sm:items-center"><p>{pageError || projectError}</p><button type="button" onClick={loadRecords} className="self-start font-semibold underline sm:self-auto">Try again</button></div>}
         {isLoading ? <p role="status" className="py-16 text-center text-sm text-muted">Loading your payments…</p>
@@ -290,6 +321,7 @@ export default function IncomePage() {
               <div className="mt-5 hidden overflow-x-auto md:block"><table className="w-full min-w-[48rem] border-collapse text-left"><thead><tr className="border-y border-line text-xs font-semibold uppercase tracking-wide text-muted"><th className="px-3 py-3">Project</th><th className="px-3 py-3">Payment date</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Method</th><th className="px-3 py-3 text-right">Amount</th><th className="px-3 py-3 text-right">Actions</th></tr></thead><tbody>{records.map((income) => <tr key={income._id} className="border-b border-line last:border-0"><td className="px-3 py-4 font-semibold text-ink">{income.project?.projectName || 'Project unavailable'}</td><td className="whitespace-nowrap px-3 py-4 text-sm text-muted">{formatDate(income.paymentDate)}</td><td className="px-3 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses(income.paymentStatus)}`}>{income.paymentStatus}</span></td><td className="px-3 py-4 text-sm text-muted">{income.paymentMethod}</td><td className="whitespace-nowrap px-3 py-4 text-right text-sm font-semibold text-ink">{formatCurrency(income.amount)}</td><td className="px-3 py-4"><div className="flex justify-end gap-2"><button type="button" onClick={() => setModalIncome(income)} className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-brand hover:bg-[#e7f1ed]">Edit</button><button type="button" onClick={() => deleteIncome(income)} className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">Delete</button></div></td></tr>)}</tbody></table></div>
               <div className="mt-4 grid gap-3 md:hidden">{records.map((income) => <PaymentCard key={income._id} income={income} onEdit={setModalIncome} onDelete={deleteIncome} />)}</div>
             </>}
+        {!isLoading && records.length > 0 && <PaginationControls pagination={pagination} onPageChange={setPage} />}
       </section>
       {modalIncome && <PaymentForm income={modalIncome} projects={projects} onCancel={() => setModalIncome(null)} onSave={saveIncome} />}
     </main>

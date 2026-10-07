@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import PaginationControls from '../components/PaginationControls.jsx'
 import { api } from '../services/api.js'
 
 const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled']
@@ -46,11 +47,14 @@ function ProjectForm({ project, clients, onCancel, onSave }) {
     startDate: dateInputValue(project.startDate),
     dueDate: dateInputValue(project.dueDate),
   })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
   function updateField(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }))
+    setFieldErrors((current) => ({ ...current, [event.target.name]: '' }))
+    setError('')
   }
 
   async function handleSubmit(event) {
@@ -59,22 +63,24 @@ function ProjectForm({ project, clients, onCancel, onSave }) {
 
     const projectName = form.projectName.trim()
     const fee = Number(form.fee)
+    const nextErrors = {}
     if (projectName.length < 2 || projectName.length > 150) {
-      setError('Project name must be between 2 and 150 characters.')
-      return
+      nextErrors.projectName = form.projectName.trim() ? 'Project name must be between 2 and 150 characters.' : 'Project name is required.'
     }
     if (!form.client) {
-      setError('Select a client for this project.')
-      return
+      nextErrors.client = 'Select a client for this project.'
     }
     if (form.fee === '' || !Number.isFinite(fee) || fee < 0) {
-      setError('Enter a valid non-negative project fee.')
-      return
+      nextErrors.fee = 'Enter a valid non-negative project fee.'
     }
     if (form.startDate && form.dueDate && form.dueDate < form.startDate) {
-      setError('Due date cannot be earlier than the start date.')
+      nextErrors.dueDate = 'Due date cannot be earlier than the start date.'
+    }
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors)
       return
     }
+    setFieldErrors({})
 
     setIsSaving(true)
     try {
@@ -111,14 +117,16 @@ function ProjectForm({ project, clients, onCancel, onSave }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label htmlFor="projectName" className="mb-1.5 block text-sm font-medium text-ink">Project name <span className="text-red-600">*</span></label>
-              <input id="projectName" name="projectName" required maxLength={150} value={form.projectName} onChange={updateField} placeholder="e.g. Brand identity refresh" className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+              <input id="projectName" name="projectName" required maxLength={150} value={form.projectName} onChange={updateField} placeholder="e.g. Brand identity refresh" aria-invalid={Boolean(fieldErrors.projectName)} aria-describedby={fieldErrors.projectName ? 'projectName-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.projectName ? 'border-red-400' : 'border-line focus:border-brand'}`} />
+              {fieldErrors.projectName && <p id="projectName-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.projectName}</p>}
             </div>
             <div>
               <label htmlFor="client" className="mb-1.5 block text-sm font-medium text-ink">Client <span className="text-red-600">*</span></label>
-              <select id="client" name="client" required value={form.client} onChange={updateField} className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15">
+              <select id="client" name="client" required value={form.client} onChange={updateField} aria-invalid={Boolean(fieldErrors.client)} aria-describedby={fieldErrors.client ? 'client-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.client ? 'border-red-400' : 'border-line focus:border-brand'}`}>
                 <option value="">Select a client</option>
                 {clients.map((client) => <option key={client._id} value={client._id}>{client.name}{client.company ? ` · ${client.company}` : ''}</option>)}
               </select>
+              {fieldErrors.client && <p id="client-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.client}</p>}
               {clients.length === 0 && <p className="mt-1.5 text-xs text-muted">Add a client before creating a project.</p>}
             </div>
             <div>
@@ -129,7 +137,8 @@ function ProjectForm({ project, clients, onCancel, onSave }) {
             </div>
             <div>
               <label htmlFor="fee" className="mb-1.5 block text-sm font-medium text-ink">Fee <span className="text-red-600">*</span></label>
-              <input id="fee" name="fee" type="number" min="0" step="0.01" required value={form.fee} onChange={updateField} placeholder="0.00" className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+              <input id="fee" name="fee" type="number" min="0" step="0.01" required value={form.fee} onChange={updateField} placeholder="0.00" aria-invalid={Boolean(fieldErrors.fee)} aria-describedby={fieldErrors.fee ? 'fee-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.fee ? 'border-red-400' : 'border-line focus:border-brand'}`} />
+              {fieldErrors.fee && <p id="fee-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.fee}</p>}
             </div>
             <div>
               <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-ink">Start date</label>
@@ -137,7 +146,8 @@ function ProjectForm({ project, clients, onCancel, onSave }) {
             </div>
             <div>
               <label htmlFor="dueDate" className="mb-1.5 block text-sm font-medium text-ink">Due date</label>
-              <input id="dueDate" name="dueDate" type="date" min={form.startDate || undefined} value={form.dueDate} onChange={updateField} className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+              <input id="dueDate" name="dueDate" type="date" min={form.startDate || undefined} value={form.dueDate} onChange={updateField} aria-invalid={Boolean(fieldErrors.dueDate)} aria-describedby={fieldErrors.dueDate ? 'dueDate-error' : undefined} className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.dueDate ? 'border-red-400' : 'border-line focus:border-brand'}`} />
+              {fieldErrors.dueDate && <p id="dueDate-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.dueDate}</p>}
             </div>
           </div>
           <div>
@@ -160,6 +170,8 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [clientFilter, setClientFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
   const [modalProject, setModalProject] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pageError, setPageError] = useState('')
@@ -168,8 +180,9 @@ export default function ProjectsPage() {
     setIsLoading(true)
     setPageError('')
     try {
-      const response = await api.getProjects({ search, status: statusFilter, client: clientFilter })
+      const response = await api.getProjects({ search: search.trim(), status: statusFilter, client: clientFilter, page, limit: 10 })
       setProjects(response.data.projects)
+      setPagination(response.pagination)
     } catch (error) {
       setPageError(error.message)
     } finally {
@@ -179,18 +192,12 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     let isMounted = true
-    Promise.all([api.getClients(), api.getProjects()])
-      .then(([clientResponse, projectResponse]) => {
-        if (isMounted) {
-          setClients(clientResponse.data.clients)
-          setProjects(projectResponse.data.projects)
-        }
+    api.getClients({ limit: 100 })
+      .then((clientResponse) => {
+        if (isMounted) setClients(clientResponse.data.clients)
       })
       .catch((error) => {
         if (isMounted) setPageError(error.message)
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false)
       })
     return () => {
       isMounted = false
@@ -198,14 +205,15 @@ export default function ProjectsPage() {
   }, [])
 
   useEffect(() => {
-    const timeout = window.setTimeout(loadProjects, 250)
+    const timeout = window.setTimeout(loadProjects, search ? 250 : 0)
     return () => window.clearTimeout(timeout)
-  }, [search, statusFilter, clientFilter])
+  }, [search, statusFilter, clientFilter, page])
 
   async function saveProject(form) {
     if (modalProject === 'new') {
       const response = await api.createProject(form)
-      setProjects((current) => [response.data.project, ...current])
+      if (page === 1) setProjects((current) => [response.data.project, ...current].slice(0, pagination?.limit || 10))
+      else await loadProjects()
     } else {
       const response = await api.updateProject(modalProject._id, form)
       setProjects((current) => current.map((project) => project._id === response.data.project._id ? response.data.project : project))
@@ -218,7 +226,8 @@ export default function ProjectsPage() {
     if (!window.confirm(`Delete "${project.projectName}"? This cannot be undone.`)) return
     try {
       await api.deleteProject(project._id)
-      setProjects((current) => current.filter((item) => item._id !== project._id))
+      if (projects.length === 1 && page > 1) setPage((current) => current - 1)
+      else await loadProjects()
     } catch (error) {
       setPageError(error.message)
     }
@@ -241,18 +250,18 @@ export default function ProjectsPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(12rem,1fr)_12rem_12rem]">
           <label>
             <span className="sr-only">Search projects</span>
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search project name…" className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+            <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search project name…" className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
           </label>
           <label>
             <span className="sr-only">Filter by status</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15">
+            <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15">
               <option value="">All statuses</option>
               {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </label>
           <label>
             <span className="sr-only">Filter by client</span>
-            <select value={clientFilter} onChange={(event) => setClientFilter(event.target.value)} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15">
+            <select value={clientFilter} onChange={(event) => { setClientFilter(event.target.value); setPage(1) }} className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15">
               <option value="">All clients</option>
               {clients.map((client) => <option key={client._id} value={client._id}>{client.name}</option>)}
             </select>
@@ -260,6 +269,7 @@ export default function ProjectsPage() {
         </div>
 
         {pageError && <div role="alert" className="mt-5 flex flex-col justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:flex-row sm:items-center"><p>{pageError}</p><button type="button" onClick={loadProjects} className="self-start font-semibold underline sm:self-auto">Try again</button></div>}
+        {(search || statusFilter || clientFilter) && <button type="button" onClick={() => { setSearch(''); setStatusFilter(''); setClientFilter(''); setPage(1) }} className="mt-3 text-sm font-semibold text-brand hover:text-brand-strong">Clear filters</button>}
 
         {isLoading ? (
           <p role="status" className="py-16 text-center text-sm text-muted">Loading your projects…</p>
@@ -294,6 +304,7 @@ export default function ProjectsPage() {
             </article>)}</div>
           </>
         )}
+        {!isLoading && projects.length > 0 && <PaginationControls pagination={pagination} onPageChange={setPage} />}
       </section>
       {modalProject && <ProjectForm project={modalProject} clients={clients} onCancel={() => setModalProject(null)} onSave={saveProject} />}
     </main>

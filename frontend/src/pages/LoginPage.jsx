@@ -9,6 +9,7 @@ export default function LoginPage() {
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -24,14 +25,15 @@ export default function LoginPage() {
     setError('')
 
     const normalizedEmail = email.trim()
-    if (!normalizedEmail || !password) {
-      setError('Enter your email address and password.')
+    const nextErrors = {}
+    if (!normalizedEmail) nextErrors.email = 'Email is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) nextErrors.email = 'Enter a valid email address.'
+    if (!password) nextErrors.password = 'Password is required.'
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors)
       return
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setError('Enter a valid email address.')
-      return
-    }
+    setFieldErrors({})
 
     setIsSubmitting(true)
     try {
@@ -62,10 +64,17 @@ export default function LoginPage() {
             autoComplete="email"
             required
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value)
+              setFieldErrors((current) => ({ ...current, email: '' }))
+              setError('')
+            }}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-line bg-white px-3.5 py-3 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
+            className={`w-full rounded-lg border bg-white px-3.5 py-3 text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.email ? 'border-red-400' : 'border-line focus:border-brand'}`}
           />
+          {fieldErrors.email && <p id="login-email-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.email}</p>}
         </div>
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
@@ -78,10 +87,17 @@ export default function LoginPage() {
             autoComplete="current-password"
             required
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value)
+              setFieldErrors((current) => ({ ...current, password: '' }))
+              setError('')
+            }}
             placeholder="Enter your password"
-            className="w-full rounded-lg border border-line bg-white px-3.5 py-3 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
+            className={`w-full rounded-lg border bg-white px-3.5 py-3 text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors.password ? 'border-red-400' : 'border-line focus:border-brand'}`}
           />
+          {fieldErrors.password && <p id="login-password-error" className="mt-1.5 text-xs text-red-700">{fieldErrors.password}</p>}
         </div>
         <button
           type="submit"

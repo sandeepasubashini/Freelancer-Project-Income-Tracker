@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import PaginationControls from '../components/PaginationControls.jsx'
 import { api } from '../services/api.js'
 
 const emptyForm = {
@@ -12,11 +13,14 @@ const emptyForm = {
 
 function ClientForm({ client, onCancel, onSave }) {
   const [form, setForm] = useState(client === 'new' ? emptyForm : { ...emptyForm, ...client })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
   function updateField(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }))
+    setFieldErrors((current) => ({ ...current, [event.target.name]: '' }))
+    setError('')
   }
 
   async function handleSubmit(event) {
@@ -24,14 +28,17 @@ function ClientForm({ client, onCancel, onSave }) {
     setError('')
 
     const name = form.name.trim()
-    if (name.length < 2 || name.length > 100) {
-      setError('Client name must be between 2 and 100 characters.')
-      return
-    }
+    const nextErrors = {}
+    if (!name) nextErrors.name = 'Client name is required.'
+    else if (name.length < 2 || name.length > 100) nextErrors.name = 'Client name must be between 2 and 100 characters.'
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setError('Enter a valid email address.')
+      nextErrors.email = 'Enter a valid email address.'
+    }
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors)
       return
     }
+    setFieldErrors({})
 
     setIsSaving(true)
     try {
@@ -76,18 +83,21 @@ function ClientForm({ client, onCancel, onSave }) {
                   value={form[field.name]}
                   onChange={updateField}
                   placeholder={field.placeholder}
-                  className="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+                  aria-invalid={Boolean(fieldErrors[field.name])}
+                  aria-describedby={fieldErrors[field.name] ? `${field.name}-error` : undefined}
+                  className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-brand/15 ${fieldErrors[field.name] ? 'border-red-400' : 'border-line focus:border-brand'}`}
                 />
+                {fieldErrors[field.name] && <p id={`${field.name}-error`} className="mt-1.5 text-xs text-red-700">{fieldErrors[field.name]}</p>}
               </div>
             ))}
           </div>
           <div>
             <label htmlFor="address" className="mb-1.5 block text-sm font-medium text-ink">Address</label>
-            <textarea id="address" name="address" rows="2" value={form.address} onChange={updateField} className="w-full resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+            <textarea id="address" name="address" rows="2" maxLength={500} value={form.address} onChange={updateField} className="w-full resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
           </div>
           <div>
             <label htmlFor="notes" className="mb-1.5 block text-sm font-medium text-ink">Notes</label>
-            <textarea id="notes" name="notes" rows="3" value={form.notes} onChange={updateField} className="w-full resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+            <textarea id="notes" name="notes" rows="3" maxLength={2000} value={form.notes} onChange={updateField} className="w-full resize-y rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
           </div>
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button type="button" onClick={onCancel} className="rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-ink hover:bg-page">Cancel</button>
@@ -126,6 +136,8 @@ function ClientCard({ client, onEdit, onDelete }) {
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
   const [modalClient, setModalClient] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pageError, setPageError] = useState('')
@@ -134,8 +146,9 @@ export default function ClientsPage() {
     setPageError('')
     setIsLoading(true)
     try {
-      const response = await api.getClients()
+      const response = await api.getClients({ search: search.trim(), page, limit: 10 })
       setClients(response.data.clients)
+      setPagination(response.pagination)
     } catch (error) {
       setPageError(error.message)
     } finally {
@@ -144,25 +157,19 @@ export default function ClientsPage() {
   }
 
   useEffect(() => {
-    loadClients()
-  }, [])
-
-  const filteredClients = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    if (!query) return clients
-    return clients.filter((client) => [client.name, client.company, client.email].some((value) => value?.toLowerCase().includes(query)))
-  }, [clients, search])
+    const timeout = window.setTimeout(loadClients, search ? 250 : 0)
+    return () => window.clearTimeout(timeout)
+  }, [search, page])
 
   async function saveClient(form) {
     if (modalClient === 'new') {
-      const response = await api.createClient(form)
-      setClients((current) => [response.data.client, ...current])
+      await api.createClient(form)
     } else {
-      const response = await api.updateClient(modalClient._id, form)
-      setClients((current) => current.map((client) => client._id === response.data.client._id ? response.data.client : client))
+      await api.updateClient(modalClient._id, form)
     }
     setModalClient(null)
     setPageError('')
+    await loadClients()
   }
 
   async function deleteClient(client) {
@@ -170,7 +177,8 @@ export default function ClientsPage() {
 
     try {
       await api.deleteClient(client._id)
-      setClients((current) => current.filter((item) => item._id !== client._id))
+      if (clients.length === 1 && page > 1) setPage((current) => current - 1)
+      else await loadClients()
     } catch (error) {
       setPageError(error.message)
     }
@@ -192,14 +200,15 @@ export default function ClientsPage() {
       <section className="mt-7 rounded-xl border border-line bg-surface p-4 shadow-panel sm:p-5">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h2 className="font-semibold text-ink">All clients <span className="ml-1 rounded-full bg-page px-2 py-0.5 text-xs font-medium text-muted">{clients.length}</span></h2>
+            <h2 className="font-semibold text-ink">All clients <span className="ml-1 rounded-full bg-page px-2 py-0.5 text-xs font-medium text-muted">{pagination?.total ?? clients.length}</span></h2>
             <p className="mt-1 text-sm text-muted">Search by name, company, or email.</p>
           </div>
           <label className="w-full sm:max-w-xs">
             <span className="sr-only">Search clients</span>
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search clients…" className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
+            <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search clients…" className="w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15" />
           </label>
         </div>
+        {search && <button type="button" onClick={() => { setSearch(''); setPage(1) }} className="mt-3 text-sm font-semibold text-brand hover:text-brand-strong">Clear search</button>}
 
         {pageError && (
           <div role="alert" className="mt-5 flex flex-col justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:flex-row sm:items-center">
@@ -213,12 +222,10 @@ export default function ClientsPage() {
         ) : clients.length === 0 ? (
           <div className="py-16 text-center">
             <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#e7f1ed] text-xl text-brand">↗</span>
-            <h3 className="mt-4 font-semibold text-ink">No clients yet</h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted">Add your first client to keep their contact details close at hand.</p>
-            <button type="button" onClick={() => setModalClient('new')} className="mt-5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">Add your first client</button>
+            <h3 className="mt-4 font-semibold text-ink">{search ? 'No matching clients' : 'No clients yet'}</h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted">{search ? 'Try a different name, company, or email.' : 'Add your first client to keep their contact details close at hand.'}</p>
+            {!search && <button type="button" onClick={() => setModalClient('new')} className="mt-5 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">Add your first client</button>}
           </div>
-        ) : filteredClients.length === 0 ? (
-          <p className="py-14 text-center text-sm text-muted">No clients match “{search}”. Try another search.</p>
         ) : (
           <>
             <div className="mt-5 hidden overflow-x-auto md:block">
@@ -229,7 +236,7 @@ export default function ClientsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredClients.map((client) => (
+                  {clients.map((client) => (
                     <tr key={client._id} className="border-b border-line last:border-0">
                       <td className="px-3 py-4"><p className="font-semibold text-ink">{client.name}</p><p className="mt-0.5 text-sm text-muted">{client.company || 'Independent client'}</p></td>
                       <td className="break-all px-3 py-4 text-sm text-muted">{client.email || '—'}</td>
@@ -241,10 +248,11 @@ export default function ClientsPage() {
               </table>
             </div>
             <div className="mt-5 grid gap-3 md:hidden">
-              {filteredClients.map((client) => <ClientCard key={client._id} client={client} onEdit={setModalClient} onDelete={deleteClient} />)}
+              {clients.map((client) => <ClientCard key={client._id} client={client} onEdit={setModalClient} onDelete={deleteClient} />)}
             </div>
           </>
         )}
+        {!isLoading && clients.length > 0 && <PaginationControls pagination={pagination} onPageChange={setPage} />}
       </section>
       {modalClient && <ClientForm client={modalClient} onCancel={() => setModalClient(null)} onSave={saveClient} />}
     </main>
