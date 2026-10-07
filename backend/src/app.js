@@ -2,6 +2,8 @@ import cors from 'cors'
 import express from 'express'
 import authRoutes from './routes/authRoutes.js'
 import clientRoutes from './routes/clientRoutes.js'
+import dashboardRoutes from './routes/dashboardRoutes.js'
+import incomeRoutes from './routes/incomeRoutes.js'
 import projectRoutes from './routes/projectRoutes.js'
 
 const app = express()
@@ -13,6 +15,8 @@ app.use(express.json())
 app.use('/api/auth', authRoutes)
 app.use('/api/clients', clientRoutes)
 app.use('/api/projects', projectRoutes)
+app.use('/api/income', incomeRoutes)
+app.use('/api/dashboard', dashboardRoutes)
 
 app.get('/api/health', (request, response) => {
   response.status(200).json({

@@ -104,6 +104,39 @@ export const api = {
       method: 'DELETE',
     })
   },
+
+  getIncome(filters = {}) {
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) query.set(key, value)
+    }
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return request(`/income${suffix}`)
+  },
+
+  createIncome(income) {
+    return request('/income', {
+      method: 'POST',
+      body: JSON.stringify(income),
+    })
+  },
+
+  updateIncome(id, income) {
+    return request(`/income/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(income),
+    })
+  },
+
+  deleteIncome(id) {
+    return request(`/income/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+
+  getDashboard() {
+    return request('/dashboard')
+  },
 }
 
 export { TOKEN_KEY }

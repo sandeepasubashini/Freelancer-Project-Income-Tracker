@@ -1,35 +1,16 @@
-import { Link, Navigate, Route, Routes } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import { lazy, Suspense } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import PublicOnlyRoute from './components/PublicOnlyRoute.jsx'
 import WorkspaceLayout from './components/WorkspaceLayout.jsx'
 import ClientsPage from './pages/ClientsPage.jsx'
+import IncomePage from './pages/IncomePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ProjectsPage from './pages/ProjectsPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 
-function DashboardPlaceholder() {
-  const { user } = useAuth()
-
-  return (
-    <main className="layout-container py-10">
-      <p className="text-sm font-semibold text-brand">Your workspace</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Welcome, {user.name}</h1>
-      <p className="mt-3 max-w-xl text-sm leading-6 text-muted">Your project and income overview will be available here in a future step. Start by organizing your client relationships.</p>
-      <Link to="/clients" className="mt-6 inline-flex rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong">View clients</Link>
-    </main>
-  )
-}
-
-function ComingSoon({ title }) {
-  return (
-    <main className="layout-container py-10">
-      <p className="text-sm font-semibold text-brand">Workspace</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{title}</h1>
-      <p className="mt-3 text-sm text-muted">This area is not available yet.</p>
-    </main>
-  )
-}
+const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'))
 
 function AppRoutes() {
   return (
@@ -40,10 +21,10 @@ function AppRoutes() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<WorkspaceLayout />}>
-          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+          <Route path="/dashboard" element={<Suspense fallback={<main className="layout-container py-10 text-center text-sm text-muted">Loading dashboard…</main>}><DashboardPage /></Suspense>} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/income" element={<ComingSoon title="Income tracking coming soon" />} />
+          <Route path="/income" element={<IncomePage />} />
         </Route>
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
