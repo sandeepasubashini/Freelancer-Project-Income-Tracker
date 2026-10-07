@@ -1,0 +1,56 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const TOKEN_KEY = 'freelancer_tracker_token'
+
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+async function request(path, options = {}) {
+  const headers = new Headers(options.headers)
+  const token = localStorage.getItem(TOKEN_KEY)
+
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+  })
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new ApiError(payload?.message || 'The request could not be completed.', response.status)
+  }
+
+  return payload
+}
+
+export const api = {
+  login(credentials) {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    })
+  },
+
+  register(userDetails) {
+    return request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userDetails),
+    })
+  },
+
+  getCurrentUser() {
+    return request('/auth/me')
+  },
+}
+
+export { TOKEN_KEY }
